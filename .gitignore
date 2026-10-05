@@ -1,0 +1,7 @@
+# Pages 部署产物忽略
+node_modules/
+
+# 杂项
+.DS_Store
+Thumbs.db
+*.log
