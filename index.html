@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
+<title>SUROI 增强版 · 2D 大逃杀</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23071020'/%3E%3Ccircle cx='16' cy='16' r='7' fill='none' stroke='%2322d3ee' stroke-width='2.5'/%3E%3Ccircle cx='16' cy='16' r='2' fill='%23ffd166'/%3E%3C/svg%3E">
+<style>
+:root{
+  --bg:#04060c; --bg2:#0b1020; --ink:#eef4ff; --muted:#93a7cf;
+  --accent:#22d3ee; --accent2:#ff3b5c; --gold:#ffd166; --green:#5ed07a;
+  --line:rgba(140,170,255,.22); --panel:rgba(8,13,28,.88);
+  --orange:#ff9540;
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--ink);
+  font-family:"Segoe UI",system-ui,-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;
+  user-select:none}
+#cv{position:fixed;inset:0;width:100vw;height:100vh;display:block;background:#0b0f18;cursor:crosshair}
+
+/* 屏幕层 */
+.screen{position:fixed;inset:0;display:none;align-items:center;justify-content:center;
+  flex-direction:column;z-index:20;
+  background:radial-gradient(ellipse at 50% 30%,rgba(20,32,60,.7),rgba(4,6,12,.94))}
+.screen.active{display:flex}
+
+/* 标题 */
+.logo{text-align:center;margin-bottom:26px}
+.logo h1{font-size:clamp(42px,8vw,76px);font-weight:900;letter-spacing:.14em;line-height:1;
+  background:linear-gradient(180deg,#fff,#7dd3fc 55%,#22d3ee);
+  -webkit-background-clip:text;background-clip:text;color:transparent;
+  filter:drop-shadow(0 0 26px rgba(34,211,238,.42))}
+.logo .tag{font-size:12px;letter-spacing:.42em;color:var(--muted);margin-top:10px;text-transform:uppercase}
+.logo .ver{display:inline-block;margin-top:12px;font-size:10px;letter-spacing:.2em;color:var(--gold);
+  border:1px solid rgba(255,209,102,.35);border-radius:99px;padding:3px 12px;background:rgba(255,209,102,.07)}
+
+/* 面板 */
+.panel{width:min(560px,92vw);background:var(--panel);border:1px solid var(--line);
+  border-radius:16px;padding:22px;backdrop-filter:blur(12px);
+  box-shadow:0 24px 70px rgba(0,0,0,.6)}
+.panel-title{font-size:11px;letter-spacing:.3em;color:var(--muted);text-transform:uppercase;margin-bottom:12px}
+
+/* 选项行 */
+.row{display:flex;align-items:center;justify-content:space-between;gap:14px;margin-bottom:16px}
+.row-label{font-size:12.5px;color:var(--ink);font-weight:600}
+.row-hint{font-size:10.5px;color:var(--muted);margin-top:3px}
+input[type=range]{width:190px;accent-color:var(--accent);cursor:pointer}
+input[type=text]{background:rgba(255,255,255,.06);border:1px solid var(--line);border-radius:9px;
+  padding:9px 12px;color:var(--ink);font-size:13px;width:190px;outline:none;font-family:inherit}
+input[type=text]:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(34,211,238,.12)}
+.val{color:var(--gold);font-weight:800;font-size:16px;min-width:34px;text-align:right}
+
+/* 分段按钮 */
+.seg{display:flex;gap:6px;flex-wrap:wrap}
+.seg button{background:rgba(255,255,255,.05);border:1px solid var(--line);color:var(--muted);
+  padding:7px 13px;border-radius:9px;cursor:pointer;font-size:11.5px;font-weight:700;
+  font-family:inherit;transition:.14s}
+.seg button:hover{background:rgba(255,255,255,.1);color:var(--ink)}
+.seg button.on{background:linear-gradient(180deg,rgba(34,211,238,.28),rgba(34,211,238,.14));
+  border-color:var(--accent);color:#fff;box-shadow:0 0 14px rgba(34,211,238,.28)}
+
+/* 按钮 */
+.btn{width:100%;padding:14px;border-radius:12px;border:none;cursor:pointer;
+  font-size:15px;font-weight:800;letter-spacing:.1em;font-family:inherit;transition:.16s;
+  background:linear-gradient(180deg,#22d3ee,#0891b2);color:#04121a;
+  box-shadow:0 8px 26px rgba(34,211,238,.34)}
+.btn:hover{transform:translateY(-2px);box-shadow:0 12px 34px rgba(34,211,238,.46)}
+.btn:active{transform:translateY(0)}
+.btn.ghost{background:rgba(255,255,255,.06);border:1px solid var(--line);color:var(--ink);box-shadow:none;font-weight:700}
+.btn.ghost:hover{background:rgba(255,255,255,.12)}
+
+.btn-bar{display:flex;gap:10px;margin-top:6px}
+.icon-btn{width:38px;height:38px;border-radius:10px;background:rgba(8,13,24,.72);
+  border:1px solid var(--line);color:var(--ink);cursor:pointer;font-size:16px;
+  display:flex;align-items:center;justify-content:center;transition:.14s;flex:none}
+.icon-btn:hover{background:rgba(34,211,238,.2);border-color:var(--accent)}
+
+/* 天赋说明 */
+.perk-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(168px,1fr));gap:9px;margin-top:14px}
+.perk-card{background:rgba(255,255,255,.045);border:1px solid var(--line);border-radius:10px;padding:9px 11px}
+.perk-n{font-size:12px;font-weight:800;color:var(--green);margin-bottom:3px}
+.perk-d{font-size:10.5px;color:var(--muted);line-height:1.45}
+
+/* 帮助 */
+.help-grid{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+.help-col h3{font-size:11px;letter-spacing:.2em;color:var(--accent);margin-bottom:10px;text-transform:uppercase}
+.kv{display:flex;justify-content:space-between;gap:12px;font-size:12px;padding:5px 0;
+  border-bottom:1px solid rgba(140,170,255,.08)}
+.kv .k{color:var(--muted)}
+.kv .v{color:var(--ink);font-weight:700;font-family:ui-monospace,monospace;font-size:11px}
+.tip{font-size:11px;color:var(--muted);line-height:1.7;margin-top:8px}
+.muted{color:var(--muted);font-size:12px}
+
+/* 结算 */
+#res-title{font-size:clamp(26px,5vw,40px);font-weight:900;letter-spacing:.06em;margin-bottom:6px}
+#res-sub{font-size:13px;color:var(--muted);margin-bottom:18px}
+.stat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(92px,1fr));gap:9px;margin-bottom:16px}
+.stat{background:rgba(255,255,255,.045);border:1px solid var(--line);border-radius:10px;
+  padding:11px 8px;text-align:center}
+.stat-k{font-size:8.5px;letter-spacing:.14em;color:var(--muted);margin-bottom:5px}
+.stat-v{font-size:19px;font-weight:900;color:var(--gold)}
+#best-line{font-size:11.5px;color:var(--gold);margin-bottom:14px;opacity:.85}
+#res-perks{display:none;gap:8px;margin-bottom:16px}
+
+/* HUD 按钮层 */
+#hud{position:fixed;inset:0;pointer-events:none;z-index:5}
+#hud-topbtns{position:fixed;top:112px;right:186px;
+  display:none;gap:8px;z-index:15}
+#hud-topbtns .icon-btn{width:32px;height:32px;font-size:13px}
+
+/* 分数板 */
+#scoreboard{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);
+  background:rgba(4,8,18,.92);border:1px solid var(--line);border-radius:14px;
+  padding:18px 22px;min-width:320px;z-index:16;display:none;flex-direction:column;
+  backdrop-filter:blur(10px);box-shadow:0 20px 60px rgba(0,0,0,.6)}
+#sb-title{font-size:11px;letter-spacing:.26em;color:var(--muted);margin-bottom:12px;text-transform:uppercase}
+.sb-row{display:flex;align-items:center;gap:10px;padding:5px 0;font-size:12.5px;
+  border-bottom:1px solid rgba(140,170,255,.07)}
+.sb-row.me{color:var(--accent);font-weight:800}
+.sb-rank{width:22px;color:var(--muted);font-size:11px}
+.sb-name{flex:1}
+.sb-kill{font-weight:800;color:var(--gold)}
+
+/* 浮动帮助按钮 */
+#help-panel{position:fixed;inset:0;background:rgba(4,6,12,.9);z-index:30;
+  display:none;align-items:center;justify-content:center;padding:20px}
+#help-panel.show{display:flex}
+
+@media(max-width:720px){
+  .panel{padding:18px}
+  .help-grid{grid-template-columns:1fr}
+  input[type=range],input[type=text]{width:150px}
+  .logo h1{font-size:44px}
+}
+</style>
+</head>
+<body>
+
+<canvas id="cv"></canvas>
+
+<!-- ================= 主菜单 ================= -->
+<div id="screen-menu" class="screen active">
+  <div class="logo">
+    <h1>SUROI</h1>
+    <div class="tag">Squad Ops · Royal Rumble</div>
+    <div class="ver">v1.0 ENHANCED · 单机增强版</div>
+  </div>
+
+  <div class="panel">
+    <div class="row">
+      <div>
+        <div class="row-label">参战人数</div>
+        <div class="row-hint">原版上限 80 人</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:12px">
+        <input type="range" id="bots" min="9" max="79" step="1" value="39">
+        <span class="val" id="bots-val">39</span>
+      </div>
+    </div>
+
+    <div class="row">
+      <div>
+        <div class="row-label">AI 难度</div>
+        <div class="row-hint">影响反应速度 / 瞄准精度 / 战术意识</div>
+      </div>
+      <div class="seg">
+        <button data-diff="1">菜鸟</button>
+        <button data-diff="2">普通</button>
+        <button data-diff="3" class="on">老兵</button>
+        <button data-diff="4">精英</button>
+        <button data-diff="5">传奇</button>
+      </div>
+    </div>
+
+    <div class="row">
+      <div>
+        <div class="row-label">出生天赋</div>
+        <div class="row-hint">原版仅 1 个，本作放宽至 3 个</div>
+      </div>
+      <div class="seg">
+        <button data-perkcnt="1">1 个</button>
+        <button data-perkcnt="2">2 个</button>
+        <button data-perkcnt="3" class="on">3 个</button>
+      </div>
+    </div>
+
+    <div class="row">
+      <div>
+        <div class="row-label">代号</div>
+        <div class="row-hint">最多 14 字符</div>
+      </div>
+      <input type="text" id="pname" maxlength="14" placeholder="YOU" value="YOU">
+    </div>
+
+    <button class="btn" id="btn-play">▶ 空 降 作 战</button>
+
+    <div class="btn-bar" style="margin-top:10px">
+      <button class="btn ghost" id="btn-help">📖 操作说明</button>
+      <button class="icon-btn" id="btn-mute" style="width:auto;flex:1">🔊</button>
+    </div>
+  </div>
+
+  <div class="tip" style="margin-top:16px;text-align:center">
+    78 把武器 · 13 阶段毒圈 · 空投补给 · 灌木潜行 · 容器搜刮
+  </div>
+</div>
+
+<!-- ================= 帮助 ================= -->
+<div id="help-panel">
+  <div class="panel" style="max-height:88vh;overflow:auto">
+    <div class="panel-title">操作说明 / CONTROLS</div>
+    <div class="help-grid">
+      <div class="help-col">
+        <h3>操作</h3>
+        <div class="kv"><span class="k">移动</span><span class="v">W A S D / 方向键</span></div>
+        <div class="kv"><span class="k">瞄准</span><span class="v">鼠标</span></div>
+        <div class="kv"><span class="k">射击</span><span class="v">鼠标左键（按住）</span></div>
+        <div class="kv"><span class="k">冲刺闪避</span><span class="v">Shift</span></div>
+        <div class="kv"><span class="k">换弹</span><span class="v">R</span></div>
+        <div class="kv"><span class="k">拾取</span><span class="v">E / 右键</span></div>
+        <div class="kv"><span class="k">切换主武器</span><span class="v">Q / 滚轮</span></div>
+        <div class="kv"><span class="k">投掷物</span><span class="v">G</span></div>
+        <div class="kv"><span class="k">切换瞄具</span><span class="v">F / 中键</span></div>
+        <div class="kv"><span class="k">急救（自动）</span><span class="v">H</span></div>
+        <div class="kv"><span class="k">使用物品 1-4</span><span class="v">1 2 3 4</span></div>
+        <div class="kv"><span class="k">计分板</span><span class="v">Tab（按住）</span></div>
+        <div class="kv"><span class="k">暂停 / 静音</span><span class="v">Esc·P / M</span></div>
+      </div>
+      <div class="help-col">
+        <h3>玩法要点</h3>
+        <div class="tip">
+          <b>毒圈</b>：13 阶段推进，最终圈在约 6 分 30 秒关闭。圈外每秒掉血且越远越痛。<br><br>
+          <b>护甲</b>：头盔单独提供减伤，护甲减伤最高 45%（T3）。<br><br>
+          <b>肾上腺素</b>：越高移速越快、回复越猛。受击、喝 Cola/Tablets 都能拉满。<br><br>
+          <b>空投</b>：在毒圈特定阶段刷新，含 S 级枪。守着落点收益最高。<br><br>
+          <b>容器</b>：地图上的金色箱子走近自动搜刮。<br><br>
+          <b>灌木</b>：藏进灌木后远处看不见你，但近身一样暴露。<br><br>
+          <b>连杀</b>：连续击杀会获得加速光环。
+        </div>
+      </div>
+    </div>
+    <button class="btn ghost" style="margin-top:18px" onclick="document.getElementById('help-panel').classList.remove('show')">关闭</button>
+  </div>
+</div>
+
+<!-- ================= 游戏 HUD 按钮 ================= -->
+<div id="hud" style="display:none"></div>
+<div id="hud-topbtns">
+  <button class="icon-btn" id="btn-pause" title="暂停 (Esc)">⏸</button>
+  <button class="icon-btn" id="btn-full" title="全屏">⛶</button>
+  <button class="icon-btn" id="btn-mute2" title="静音 (M)">🔊</button>
+</div>
+
+<!-- ================= 暂停 ================= -->
+<div id="screen-pause" class="screen">
+  <div class="panel" style="width:min(400px,90vw)">
+    <div class="logo" style="margin-bottom:18px"><h1 style="font-size:40px">PAUSED</h1></div>
+    <button class="btn" id="btn-resume">▶ 继 续</button>
+    <button class="btn ghost" style="margin-top:10px" id="btn-quit">放弃本局</button>
+  </div>
+</div>
+
+<!-- ================= 结算 ================= -->
+<div id="screen-result" class="screen">
+  <div class="panel" style="width:min(540px,92vw)">
+    <div id="res-title">—</div>
+    <div id="res-sub">—</div>
+    <div class="stat-grid" id="res-stats"></div>
+    <div id="best-line"></div>
+    <div id="res-perks" class="perk-grid"></div>
+    <div class="btn-bar">
+      <button class="btn" id="btn-again">再 来 一 局</button>
+      <button class="btn ghost" id="btn-perks" style="flex:0 0 108px">天赋</button>
+      <button class="btn ghost" id="btn-menu" style="flex:0 0 92px">菜单</button>
+    </div>
+  </div>
+</div>
+
+<!-- ================= 计分板 ================= -->
+<div id="scoreboard">
+  <div id="sb-title">存活名单 / ALIVE</div>
+  <div id="sb-list"></div>
+</div>
+
+<script type="module" src="./src/main.js"></script>
+</body>
+</html>
